@@ -162,3 +162,23 @@ cython_debug/
 
 ./best_model_weights/*
 ./data/*
+
+
+
+# Rongqing's modification
+slurm*
+data/
+protein_design/test_dev_pdb_param/
+protein_design/fig
+protein_design/files/*pth
+protein_design/files/*log
+protein_design/files/*png
+
+
+sudoku/*pth
+sudoku/*log
+sudoku/*log_1
+sudoku/*png
+binary_mnist/*pth
+best_model_weights/
+*gz

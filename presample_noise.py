@@ -1,9 +1,11 @@
+from ddsm import noise_factory
+import torch
 import argparse
 import os.path
 
-import torch
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from ddsm import noise_factory
 
 def parse_args():
     parser = argparse.ArgumentParser("Pre generate jacobi process values with specified number of "
@@ -11,12 +13,12 @@ def parse_args():
 
     parser.add_argument("-n", "--num_samples", type=int,
                         help="Number of the different samples pre generated (default = 100000)",
-                        default=100000) 
+                        default=100000)
     parser.add_argument("-c", "--num_cat", type=int,
-                        help="Number of categories", required=True) 
+                        help="Number of categories", required=True)
     parser.add_argument("-t", '--num_time_steps', type=int,
                         help="Number of time steps between <min_time> and <max_time> (default = 400)",
-                        default=400) 
+                        default=400)
     parser.add_argument("--speed_balance", action='store_true',
                         help="Adding speed balance to Jacobi Process")
     parser.add_argument("--max_time", type=float,
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     torch.set_default_dtype(torch.float64)
 
     alpha = torch.ones(args.num_cat - 1)
-    beta =  torch.arange(args.num_cat - 1, 0, -1)
+    beta = torch.arange(args.num_cat - 1, 0, -1)
 
     v_one, v_zero, v_one_loggrad, v_zero_loggrad, timepoints = noise_factory(args.num_samples,
                                                                              args.num_time_steps,
@@ -82,4 +84,5 @@ if __name__ == '__main__':
     v_zero_loggrad = v_zero_loggrad.cpu()
     timepoints = torch.FloatTensor(timepoints)
 
-    torch.save((v_one, v_zero, v_one_loggrad, v_zero_loggrad, timepoints), filepath)
+    torch.save((v_one, v_zero, v_one_loggrad,
+               v_zero_loggrad, timepoints), filepath)

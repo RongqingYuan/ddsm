@@ -331,6 +331,8 @@ def diffusion_factory(
     sb = UnitStickBreakingTransform()
 
     sample_inds = torch.randint(0, noise_factory_size, size=x.size()[:-1])
+    # print(sample_inds.device)
+    # print(time_ind.device)
     v_samples = noise_factory_zero[sample_inds, time_ind, :].to(device).float()
     v_samples_grad = (
         noise_factory_zero_loggrad[sample_inds, time_ind, :].to(device).float()

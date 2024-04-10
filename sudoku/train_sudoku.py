@@ -1,3 +1,4 @@
+from ddsm import *
 import numpy as np
 import random
 import math
@@ -11,9 +12,9 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-import sys 
-sys.path.append("../")
-from ddsm import *
+import sys
+# sys.path.append("../")
+
 
 def worker_init_fn(worker_id):
     np.random.seed(worker_id)
@@ -30,11 +31,13 @@ def construct_puzzle_solution():
             puzzle = [[0] * 9 for i in range(9)]  # start with blank puzzle
             rows = [set(range(1, 10)) for i in range(9)]  # set of available
             columns = [set(range(1, 10)) for i in range(9)]  # numbers for each
-            squares = [set(range(1, 10)) for i in range(9)]  # row, column and square
+            squares = [set(range(1, 10))
+                       for i in range(9)]  # row, column and square
             for i in range(9):
                 for j in range(9):
                     # pick a number for cell (i,j) from the set of remaining available numbers
-                    choices = rows[i].intersection(columns[j]).intersection(squares[(i // 3) * 3 + j // 3])
+                    choices = rows[i].intersection(columns[j]).intersection(
+                        squares[(i // 3) * 3 + j // 3])
                     choice = random.choice(list(choices))
 
                     puzzle[i][j] = choice
@@ -87,7 +90,8 @@ def sudoku_acc(sample, return_array=False):
                 np.all(np.sort(board.T, axis=1) == numbers_1_N)):
             # Check blocks
 
-            blocks = board.reshape(3, 3, 3, 3).transpose(0, 2, 1, 3).reshape(9, 9)
+            blocks = board.reshape(3, 3, 3, 3).transpose(
+                0, 2, 1, 3).reshape(9, 9)
             if np.all(np.sort(board.T, axis=1) == numbers_1_N):
                 correct += 1
                 corrects.append(True)
@@ -105,11 +109,13 @@ def sudoku_acc(sample, return_array=False):
 ############## SUDOKU MDDEL #################
 #############################################
 
+
 class NewGELU(nn.Module):
     """
     Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT).
     Reference: Gaussian Error Linear Units (GELU) paper: https://arxiv.org/abs/1606.08415
     """
+
     def forward(self, x):
         return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
@@ -139,9 +145,12 @@ class SelfAttention(nn.Module):
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        k = k.view(B, T, self.n_head, C //
+                   self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        q = q.view(B, T, self.n_head, C //
+                   self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        v = v.view(B, T, self.n_head, C //
+                   self.n_head).transpose(1, 2)  # (B, nh, T, hs)
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
@@ -149,7 +158,8 @@ class SelfAttention(nn.Module):
         att = F.softmax(att, dim=-1)
         # att = self.attn_dropout(att)
         y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C)  # re-assemble all head outputs side by side
+        # re-assemble all head outputs side by side
+        y = y.transpose(1, 2).contiguous().view(B, T, C)
 
         # output projection
         y = self.c_proj(y)
@@ -186,7 +196,8 @@ class GaussianFourierProjection(nn.Module):
         super().__init__()
         # Randomly sample weights during initialization. These weights are fixed
         # during optimization and are not trainable.
-        self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+        self.W = nn.Parameter(torch.randn(embed_dim // 2)
+                              * scale, requires_grad=False)
 
     def forward(self, x):
         x_proj = x[:, None] * self.W[None, :] * 2 * np.pi
@@ -224,7 +235,8 @@ class ScoreNet(nn.Module):
                                    nn.Linear(embed_dim, embed_dim))
 
         self.linear = Dense(9, 128)
-        self.blocks = nn.ModuleList(Block(128, 8, bias=allenc_relative) for _ in range(20))
+        self.blocks = nn.ModuleList(
+            Block(128, 8, bias=allenc_relative) for _ in range(20))
         self.denses = nn.ModuleList(Dense(embed_dim, 128) for _ in range(20))
         self.act = NewGELU()
         self.softplus = nn.Softplus()
@@ -249,42 +261,41 @@ class ScoreNet(nn.Module):
         return h
 
 
-def define_relative_encoding(): 
+def define_relative_encoding():
     colind = np.array([
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8],
-                    [0,1,2,3,4,5,6,7,8]
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8]
     ])
 
     rowind = np.array([
-                [0,0,0,0,0,0,0,0,0],
-                [1,1,1,1,1,1,1,1,1],
-                [2,2,2,2,2,2,2,2,2],
-                [3,3,3,3,3,3,3,3,3],
-                [4,4,4,4,4,4,4,4,4],
-                [5,5,5,5,5,5,5,5,5],
-                [6,6,6,6,6,6,6,6,6],
-                [7,7,7,7,7,7,7,7,7],
-                [8,8,8,8,8,8,8,8,8]
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [2, 2, 2, 2, 2, 2, 2, 2, 2],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [4, 4, 4, 4, 4, 4, 4, 4, 4],
+        [5, 5, 5, 5, 5, 5, 5, 5, 5],
+        [6, 6, 6, 6, 6, 6, 6, 6, 6],
+        [7, 7, 7, 7, 7, 7, 7, 7, 7],
+        [8, 8, 8, 8, 8, 8, 8, 8, 8]
     ])
 
-
     blockind = np.array([
-                [0,0,0,1,1,1,2,2,2],
-                [0,0,0,1,1,1,2,2,2],
-                [0,0,0,1,1,1,2,2,2],
-                [3,3,3,4,4,4,5,5,5],
-                [3,3,3,4,4,4,5,5,5],
-                [3,3,3,4,4,4,5,5,5],
-                [6,6,6,7,7,7,8,8,8],
-                [6,6,6,7,7,7,8,8,8],
-                [6,6,6,7,7,7,8,8,8]
+        [0, 0, 0, 1, 1, 1, 2, 2, 2],
+        [0, 0, 0, 1, 1, 1, 2, 2, 2],
+        [0, 0, 0, 1, 1, 1, 2, 2, 2],
+        [3, 3, 3, 4, 4, 4, 5, 5, 5],
+        [3, 3, 3, 4, 4, 4, 5, 5, 5],
+        [3, 3, 3, 4, 4, 4, 5, 5, 5],
+        [6, 6, 6, 7, 7, 7, 8, 8, 8],
+        [6, 6, 6, 7, 7, 7, 8, 8, 8],
+        [6, 6, 6, 7, 7, 7, 8, 8, 8]
     ])
 
     colenc = np.zeros((81, 9))
@@ -292,9 +303,10 @@ def define_relative_encoding():
     blockenc = np.zeros((81, 9))
     colenc[np.arange(81), colind.flatten()] = 1
     rowenc[np.arange(81), rowind.flatten()] = 1
-    blockenc[np.arange(81),blockind.flatten()] = 1
+    blockenc[np.arange(81), blockind.flatten()] = 1
     allenc = np.concatenate([colenc, rowenc, blockenc], axis=1)
-    return torch.FloatTensor(allenc[:,None,:] == allenc[None,:,:])
+    return torch.FloatTensor(allenc[:, None, :] == allenc[None, :, :])
+
 
 if __name__ == "__main__":
     device = 'cuda'
@@ -303,15 +315,15 @@ if __name__ == "__main__":
 
     lr = 1e-4
     num_steps = 500
-    n_epochs = 600
+    n_epochs = 2000
     random_order = False
 
-    v_one, v_zero, v_one_loggrad, v_zero_loggrad, timepoints =  torch.load('steps400.cat9.time1.0.samples100000.pth') 
+    v_one, v_zero, v_one_loggrad, v_zero_loggrad, timepoints = torch.load(
+        'steps400.cat9.time1.0.samples100000.pth')
     n_timesteps = timepoints.shape[0]
     alpha = torch.FloatTensor([1.0])
     beta = torch.FloatTensor([8.0])
     torch.set_default_dtype(torch.float32)
-
 
     sb = UnitStickBreakingTransform()
 
@@ -330,7 +342,8 @@ if __name__ == "__main__":
         x = x.reshape(-1, 9, 9, 9)
         random_t = torch.randint(0, n_timesteps, (x.shape[0],))
         order = np.random.permutation(np.arange(9))
-        perturbed_x, perturbed_x_grad = diffusion_fast_flatdirichlet(x[..., order], random_t, v_one, v_one_loggrad)
+        perturbed_x, perturbed_x_grad = diffusion_fast_flatdirichlet(
+            x[..., order], random_t, v_one, v_one_loggrad)
         perturbed_x = perturbed_x[..., np.argsort(order)]
         perturbed_x_grad = perturbed_x_grad[..., np.argsort(order)]
         perturbed_x = perturbed_x.to(device)
@@ -339,7 +352,8 @@ if __name__ == "__main__":
         perturbed_v = sb._inverse(perturbed_x)
 
         order = np.random.permutation(np.arange(9))
-        perturbed_v = sb._inverse(perturbed_x[..., order], prevent_nan=True).detach()
+        perturbed_v = sb._inverse(
+            perturbed_x[..., order], prevent_nan=True).detach()
 
         time_dependent_counts[random_t] += 1
         time_dependent_cums[random_t] += (perturbed_v * (1 - perturbed_v) * (
@@ -374,7 +388,7 @@ if __name__ == "__main__":
 
             x = dataset.reshape(-1, 9, 9, 9)
             random_t = torch.LongTensor(np.random.choice(np.arange(n_timesteps), size=x.shape[0], p=(
-                        time_dependent_weights / time_dependent_weights.sum()).cpu().detach().numpy()))
+                time_dependent_weights / time_dependent_weights.sum()).cpu().detach().numpy()))
 
             order = np.random.permutation(np.arange(9))
             if random_order:
@@ -383,7 +397,8 @@ if __name__ == "__main__":
                 perturbed_x = perturbed_x[..., np.argsort(order)]
                 perturbed_x_grad = perturbed_x_grad[..., np.argsort(order)]
             else:
-                perturbed_x, perturbed_x_grad = diffusion_fast_flatdirichlet(x, random_t, v_one, v_one_loggrad)
+                perturbed_x, perturbed_x_grad = diffusion_fast_flatdirichlet(
+                    x, random_t, v_one, v_one_loggrad)
 
             perturbed_x = perturbed_x.to(device)
             perturbed_x_grad = perturbed_x_grad.to(device)
@@ -392,17 +407,19 @@ if __name__ == "__main__":
             order = np.random.permutation(np.arange(9))
 
             if random_order:
-                perturbed_v = sb._inverse(perturbed_x[..., order], prevent_nan=True).detach()
+                perturbed_v = sb._inverse(
+                    perturbed_x[..., order], prevent_nan=True).detach()
                 loss = torch.mean(torch.mean(
                     1 / (time_dependent_weights)[random_t, None, None, None] * perturbed_v * (1 - perturbed_v) * (
-                                gx_to_gv(score[..., order], perturbed_x[..., order], create_graph=True) - gx_to_gv(
+                        gx_to_gv(score[..., order], perturbed_x[..., order], create_graph=True) - gx_to_gv(
                             perturbed_x_grad[..., order], perturbed_x[..., order])) ** 2, dim=(1, 2)))
             else:
-                perturbed_v = sb._inverse(perturbed_x, prevent_nan=True).detach()
+                perturbed_v = sb._inverse(
+                    perturbed_x, prevent_nan=True).detach()
                 loss = torch.mean(torch.mean(
                     1 / (time_dependent_weights)[random_t, None, None, None] * perturbed_v * (1 - perturbed_v) * (
-                                gx_to_gv(score, perturbed_x, create_graph=True) - gx_to_gv(perturbed_x_grad,
-                                                                                           perturbed_x)) ** 2,
+                        gx_to_gv(score, perturbed_x, create_graph=True) - gx_to_gv(perturbed_x_grad,
+                                                                                   perturbed_x)) ** 2,
                     dim=(1, 2)))
 
             optimizer.zero_grad()
@@ -427,3 +444,8 @@ if __name__ == "__main__":
                           device=device)
         sudoku_acc(samples)
         j += 1
+        print(samples.shape)
+        print(samples[0])
+        print(samples[0].shape)
+        print(samples[0].max(axis=1))
+        print(samples[0].min(axis=1))

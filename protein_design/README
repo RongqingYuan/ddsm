@@ -1,0 +1,15 @@
+time_emb.ipynb: for test time_emb dimensions.
+
+test_model.ipynb: for statistical analysis.
+
+test_develop.py: diffusion model for random seqs
+
+test_develop_pdb.py: diffusion model for random seqs found
+
+sequence_generation.py: generate seqs with trained model.
+
+sequence_generation_chi_square.py: do chi square test for generated seqs.
+
+sequence_generation_chi_square_plot.py: plot chi square test results.
+
+plot_loss.py: training loss
